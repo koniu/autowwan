@@ -121,10 +121,10 @@ end
 
 --}}}
 --{{{ net functions
----{{{ update_connectable
-function update_connectable()
-    connectable = {}
-    for i, ap in ipairs(range) do
+---{{{ filter_results
+function filter_results(results)
+    local connectable = {}
+    for i, ap in ipairs(results) do
         if not (ignored[ap.ssid] or (presets[ap.ssid] and presets[ap.ssid].ignore)) then
             if (not ap.encryption.enabled) and cfg.join_open then
                 table.insert(connectable, ap)
@@ -135,14 +135,15 @@ function update_connectable()
         end
     end
     table.sort(connectable, pref_sort)
-    log_result("found "..#connectable.." out of "..#range, logs.info)
+    log_result("found "..#connectable.." out of "..#results, logs.info)
+    return connectable
 end
 ---}}}
----{{{ update_range
-function update_range()
+---{{{ scan
+function scan()
     log("scanning: ", logs.info, 1)
     os.execute("ifconfig " .. cfg.iface .. " up")
-    range = iwinfo.nl80211.scanlist(cfg.iface)
+    return iwinfo.nl80211.scanlist(cfg.iface)
 end
 ---}}}
 ---{{{ ping
@@ -179,9 +180,7 @@ function reconnect()
     local connected
     while not connected do
         load_config()
-        update_range()
-        update_connectable()
-        for i, ap in ipairs(connectable) do
+        for i, ap in ipairs(filter_results(scan())) do
             connected = connect(ap)
             if connected then break end
         end

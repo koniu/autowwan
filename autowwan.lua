@@ -9,7 +9,8 @@ defaults = {
     check_interval = 1,
     ping_failed_limit = 10,
     ping_stat_count = 10,
-    ping_host = "google.com",
+    ping_test_host = "8.8.8.8",
+    ping_opts = "-W 5",
     join_open = true,
     ignore_ssids = "IgnoreMe,AndMe,MeToo",
     http_test_url = "http://www.kernel.org/pub/linux/kernel/v2.6/ChangeLog-2.6.9",
@@ -170,17 +171,17 @@ end
 ---}}}
 ---{{{ ping
 function ping(host)
-    local out = pread("ping -c1 "..host .. " 2>/dev/null")
+    local out = pread(string.format("ping -c1 %s %s 2>/dev/null", cfg.ping_opts, host))
     return tonumber(out:match("/(%d+%.%d+) ms"))
 end
 ---}}}
 ---{{{ ping_test
 function ping_test()
     log("ping test - ", logs.info, 1)
-    local p = ping(cfg.ping_host)
+    local p = ping(cfg.ping_test_host)
     update_stats(p)
     if p then
-        log_result(string.format("ok [%s, %.0fms, avg %.0fms, loss %.0f%%]", cfg.ping_host, p, stats.avg, stats.loss))
+        log_result(string.format("ok [%s, %.0fms, avg %.0fms, loss %.0f%%]", cfg.ping_test_host, p, stats.avg, stats.loss))
     else
         log_result("failed!")
     end

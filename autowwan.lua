@@ -115,6 +115,14 @@ function update_presets()
     presets = {}
     ucfg:foreach("autowwan", "networks", function(net) presets[net.ssid] = typify(net) end)
 end
+
+function update_tests()
+    ucfg:load("autowwan")
+    log("reading tests", logs.info)
+    local ts = {}
+    ucfg:foreach("autowwan", "tests", function(test) table.insert(ts, typify(test)) end)
+    if #ts > 0 then tests = ts else tests = default_tests end
+end
 --}}}
 --{{{ net functions
 ---{{{ update_connectable
@@ -161,7 +169,7 @@ function connect(ap)
     sleep(cfg.conn_timeout)
     for i, test in ipairs(tests) do
         if test.conn then
-            local result = test.f(test)
+            local result = testf[test.type](test)
             if not result then return end
         end
     end
@@ -176,6 +184,7 @@ function reconnect()
     while not connected do
         update_config()
         update_presets()
+        update_tests()
         update_range()
         update_connectable()
         for i, ap in ipairs(connectable) do
@@ -187,8 +196,9 @@ end
 ---}}}
 --}}}
 --{{{ test functions
----{{{ ping_test
-function ping_test(arg)
+testf = {}
+---{{{ ping
+testf.ping = function(arg)
     log("ping test - ", logs.info, 1)
     local p = ping(arg.host, arg.opts)
     update_stats(arg, p)
@@ -200,8 +210,8 @@ function ping_test(arg)
     return p
 end
 ---}}}
----{{{ wifi_test
-function wifi_test(arg)
+---{{{ wifi
+testf.wifi = function(arg)
     log("wifi test - ", logs.info, 1)
     local q = iwinfo.nl80211.quality(cfg.iface)
     local qmax = iwinfo.nl80211.quality_max(cfg.iface)
@@ -217,8 +227,8 @@ function wifi_test(arg)
     end
 end
 ---}}}
----{{{ ip_test
-function ip_test()
+---{{{ ip
+testf.ip = function()
     log("ip test   - ", logs.info, 1)
     wan = ustate:get_all("network", "wan")
     if not wan then
@@ -235,8 +245,8 @@ function ip_test()
     end
 end
 ---}}}
----{{{ dns_test
-function dns_test(arg)
+---{{{ dns
+testf.dns = function(arg)
     log("dns test  - ", logs.info, 1)
     local out = pread("nslookup "..arg.host)
     local name, addr = out:match("Name:.-([%w%p]+).*Address 1: (%d+%.%d+%.%d+%.%d+)")
@@ -248,8 +258,8 @@ function dns_test(arg)
     end
 end
 ---}}}
----{{{ http_test
-function http_test(arg)
+---{{{ http
+testf.http = function(arg)
     log("http test - ", logs.info, 1)
     local start = os.time()
     local fn = arg.dest .. "/http_test"
@@ -300,14 +310,14 @@ defaults = {
     stat_buffer = 50,
 }
 
-tests = {
-    { f = wifi_test, conn = true, interval = 1, retry_limit = 1 },
-    { f = ip_test, conn = true },
-    { f = ping_test, conn = true, interval = 1, retry_limit = 10,
+default_tests = {
+    { type = "wifi", conn = true, interval = 1, retry_limit = 1 },
+    { type = "ip", conn = true },
+    { type = "ping", conn = true, interval = 1, retry_limit = 10,
         host = "8.8.8.8",
         opts = "-W 5 -c 1" },
-    { f = dns_test, conn = true, host = "google.com" },
-    { f = http_test, conn = true,
+    { type = "dns", conn = true, host = "google.com" },
+    { type = "http", conn = true,
         url = "http://www.kernel.org/pub/linux/kernel/v2.6/ChangeLog-2.6.9",
         md5 = "b6594bd05e24b9ec400d742909360a2c",
         dest ="/tmp" },
@@ -329,6 +339,7 @@ ucfg = uci.cursor()
 ustate = uci.cursor(ni, "/var/state")
 
 update_config()
+update_tests()
 
 stats = {}
 iter = 0
@@ -337,7 +348,7 @@ iter = 0
 while true do
     for i, test in ipairs(tests) do
         if test.interval and math.fmod(iter, test.interval) == 0 then
-            local result = test.f(test)
+            local result = testf[test.type](test)
             if not result then
                 test.failed = (test.failed or 0) + 1
                 if test.failed >= test.retry_limit then

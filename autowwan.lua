@@ -15,6 +15,7 @@ defaults = {
     http_test_url = "http://www.kernel.org/pub/linux/kernel/v2.6/ChangeLog-2.6.9",
     http_test_md5 = "b6594bd05e24b9ec400d742909360a2c",
     http_test_dest = "/tmp",
+    dns_test_host = "google.com",
 }
 
 logs = {     
@@ -220,6 +221,19 @@ function ip_test()
     end
 end
 ---}}}
+---{{{ dns_test
+function dns_test()
+    log("dns test  - ", logs.info, 1)
+    local out = pread("nslookup "..cfg.dns_test_host)
+    local name, addr = out:match("Name:.-([%w%p]+).*Address 1: (%d+%.%d+%.%d+%.%d+)")
+    if name and addr then
+        log_result(string.format("ok [%s -> %s]", name, addr))
+        return true
+    else
+        log_result("failed")
+    end
+end
+---}}}
 ---{{{ http_test
 function http_test()
     log("http test - ", logs.info, 1)
@@ -250,8 +264,8 @@ function connect(ap)
     uwifi:commit("wireless")
     os.execute("wifi >& /dev/null")
     sleep(cfg.conn_timeout)
-    if wifi_test() and ip_test() and ping_test() then
-        http_test()
+    if wifi_test() and ip_test() and ping_test() and dns_test() and http_test() then
+        log("connected!")
         failed = 0
         return true
     end

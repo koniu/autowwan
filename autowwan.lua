@@ -4,7 +4,7 @@ require("iwinfo")
 
 --{{{ defaults
 defaults = {
-    iface = wlan0,
+    iface = "wlan0",
     conn_timeout = 10,
     check_interval = 1,
     ping_failed_limit = 10,

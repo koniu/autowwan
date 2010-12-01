@@ -344,7 +344,7 @@ while true do
             if not result then
                 test.failed = (test.failed or 0) + 1
                 if test.failed >= test.retry_limit then
-                    log("reached retry limit")
+                    log(string.format("%s test - reached retry limit [%d]", test.type, test.retry_limit))
                     stats = {}
                     iter = 0
                     reconnect()

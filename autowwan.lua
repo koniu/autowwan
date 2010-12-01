@@ -68,17 +68,17 @@ end
 ---}}}
 --}}}
 --{{{ log functions
-function log(msg, l, nonl)
-    local l = l or logs.info
-    if l.level > log_level then return end
+function log(msg, level, nonl)
+    local level = level or 6
+    if level > ((cfg and cfg.log_level) or 5) then return end
     local nl = (nonl and "") or "\n"
     local time = os.date("%Y-%m-%d %H:%M:%S")
-    local stamp = time .. " autowwan." .. l.header .. ": "
+    local stamp = time .. " autowwan." .. log_levels[level] .. ": "
     io.stdout:write(stamp .. msg .. nl)
 end
-function log_result(msg, l)
-    local l = l or logs.info
-    if l.level > log_level then return end
+function log_result(msg, level)
+    local level = level or 6
+    if level > cfg.log_level then return end
     io.stdout:write(msg.."\n")
 end
 --}}}
@@ -89,13 +89,13 @@ function get_uci_section()
         if s.autowwan and s.mode == "sta" then cfg.section=s[".name"] end end)
 
     if not cfg.section then
-        log("no suitable interfaces found", logs.err)
+        log("no suitable interfaces found", 6)
         os.exit(1)
     end
 end
 
 function load_config()
-    log("reading config", logs.info)
+    log("reading config")
     -- load config from uci
     ucfg:load("autowwan")
     cfg = ucfg:get_all("autowwan.config")
@@ -135,13 +135,13 @@ function filter_results(results)
         end
     end
     table.sort(connectable, pref_sort)
-    log_result("found "..#connectable.." out of "..#results, logs.info)
+    log_result("found "..#connectable.." out of "..#results, 5)
     return connectable
 end
 ---}}}
 ---{{{ scan
 function scan()
-    log("scanning: ", logs.info, 1)
+    log("scanning: ", 5, true)
     os.execute("ifconfig " .. cfg.iface .. " up")
     return iwinfo.nl80211.scanlist(cfg.iface)
 end
@@ -156,7 +156,7 @@ end
 function connect(ap)
     get_uci_section()
     os.execute("ifdown wan")
-    log("connecting to ap: "..ap.ssid, logs.info)
+    log("connecting to ap: "..ap.ssid, 5)
     uwifi:set("wireless", cfg.section, "ssid", ap.ssid)
     uwifi:set("wireless", cfg.section, "encryption", presets[ap.ssid].encryption)
     uwifi:set("wireless", cfg.section, "key", presets[ap.ssid].key)
@@ -170,13 +170,13 @@ function connect(ap)
             if not result then return end
         end
     end
-    log("connected!")
+    log("connected!", 5)
     return true
 end
 ---}}}
 ---{{{ reconnect
 function reconnect()
-    log("reconnecting")
+    log("reconnecting", 5)
     local connected
     while not connected do
         load_config()
@@ -192,7 +192,7 @@ end
 testf = {}
 ---{{{ ping
 testf.ping = function(arg)
-    log("ping test - ", logs.info, 1)
+    log("ping test - ", nil, true)
     local p = ping(arg.host, arg.opts)
     update_stats(arg, p)
     if p then
@@ -205,7 +205,7 @@ end
 ---}}}
 ---{{{ wifi
 testf.wifi = function(arg)
-    log("wifi test - ", logs.info, 1)
+    log("wifi test - ", nil, true)
     local q = iwinfo.nl80211.quality(cfg.iface)
     local qmax = iwinfo.nl80211.quality_max(cfg.iface)
     local p = math.floor((q*100)/qmax)
@@ -222,7 +222,7 @@ end
 ---}}}
 ---{{{ ip
 testf.ip = function()
-    log("ip test   - ", logs.info, 1)
+    log("ip test   - ", nil, true)
     wan = ustate:get_all("network", "wan")
     if not wan then
         log_result("failed [interface down]")
@@ -240,7 +240,7 @@ end
 ---}}}
 ---{{{ dns
 testf.dns = function(arg)
-    log("dns test  - ", logs.info, 1)
+    log("dns test  - ", nil, true)
     local out = pread("nslookup "..arg.host)
     local name, addr = out:match("Name:.-([%w%p]+).*Address 1: (%d+%.%d+%.%d+%.%d+)")
     if name and addr then
@@ -253,7 +253,7 @@ end
 ---}}}
 ---{{{ http
 testf.http = function(arg)
-    log("http test - ", logs.info, 1)
+    log("http test - ", nil, true)
     local start = os.time()
     local fn = arg.dest .. "/http_test"
     os.execute(string.format("wget -O%s %s >& /dev/null", fn, arg.url))
@@ -301,6 +301,7 @@ defaults = {
     interval = 1,
     conn_timeout = 10,
     stat_buffer = 50,
+    log_level = 5,
 }
 
 default_tests = {
@@ -316,15 +317,7 @@ default_tests = {
         dest ="/tmp" },
 }
 
-logs = {
-    err     = { header = "error",     level = 0 },
-    warn    = { header = "warning", level = 1 },
-    info    = { header = "info",     level = 2 },
-    dbg     = { header = "debug",   level = 3 },
-}
-
-log_level = 2
-
+log_levels = { "alert", "crit", "err", "warning", "notice", "info", "debug" }
 --}}}
 --{{{ init
 uwifi = uci.cursor()
@@ -344,7 +337,7 @@ while true do
             if not result then
                 test.failed = (test.failed or 0) + 1
                 if test.failed >= test.retry_limit then
-                    log(string.format("%s test - reached retry limit [%d]", test.type, test.retry_limit))
+                    log(string.format("%s test - reached retry limit [%d]", test.type, test.retry_limit), 5)
                     stats = {}
                     iter = 0
                     reconnect()

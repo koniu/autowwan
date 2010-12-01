@@ -68,18 +68,23 @@ end
 ---}}}
 --}}}
 --{{{ log functions
-function log(msg, level, nonl)
-    local level = level or 6
+function log(msg, level, partial)
+    local buf = logbuffer or {}
+    local level = level or buf.level or 6
+    local msg = (buf.msg or "") .. msg
+    local time = buf.time or os.date("%Y-%m-%d %H:%M:%S")
     if level > ((cfg and cfg.log_level) or 5) then return end
-    local nl = (nonl and "") or "\n"
-    local time = os.date("%Y-%m-%d %H:%M:%S")
-    local stamp = time .. " autowwan." .. log_levels[level] .. ": "
-    io.stdout:write(stamp .. msg .. nl)
-end
-function log_result(msg, level)
-    local level = level or 6
-    if level > cfg.log_level then return end
-    io.stdout:write(msg.."\n")
+    if partial then
+        logbuffer = { msg = msg, time = time, level = level }
+    else
+        logbuffer = nil
+        if cfg.syslog then
+            os.execute(string.format("logger -t autowwan -p %d %s", level, msg))
+        else
+            local stamp = time .. " autowwan." .. log_levels[level] .. ": "
+            io.stdout:write(stamp .. msg .. "\n")
+        end
+    end
 end
 --}}}
 --{{{ uci functions
@@ -135,7 +140,7 @@ function filter_results(results)
         end
     end
     table.sort(connectable, pref_sort)
-    log_result("found "..#connectable.." out of "..#results, 5)
+    log("found "..#connectable.." out of "..#results)
     return connectable
 end
 ---}}}
@@ -196,9 +201,9 @@ testf.ping = function(arg)
     local p = ping(arg.host, arg.opts)
     update_stats(arg, p)
     if p then
-        log_result(string.format("ok [%s, %.0fms, avg %.0fms, loss %.0f%%]", arg.host, p, stats[arg].avg, stats[arg].loss))
+        log(string.format("ok [%s, %.0fms, avg %.0fms, loss %.0f%%]", arg.host, p, stats[arg].avg, stats[arg].loss))
     else
-        log_result("failed!")
+        log("failed!")
     end
     return p
 end
@@ -213,10 +218,10 @@ testf.wifi = function(arg)
     if 
         iwinfo.nl80211.bssid(cfg.iface) and q > 0
     then 
-        log_result(string.format("ok [%s, %s%%, avg %.0f%%]", iwinfo.nl80211.ssid(cfg.iface), p, stats[arg].avg))
+        log(string.format("ok [%s, %s%%, avg %.0f%%]", iwinfo.nl80211.ssid(cfg.iface), p, stats[arg].avg))
         return p
     else
-        log_result("failed!")
+        log("failed!")
     end
 end
 ---}}}
@@ -225,15 +230,15 @@ testf.ip = function()
     log("ip test   - ", nil, true)
     wan = ustate:get_all("network", "wan")
     if not wan then
-        log_result("failed [interface down]")
+        log("failed [interface down]")
     elseif not wan.up then
-        log_result("failed [not connected]")
+        log("failed [not connected]")
     elseif not wan.ipaddr then
-        log_result("failed [no IP address]")
+        log("failed [no IP address]")
     elseif not wan.gateway then
-        log_result("failed [no gateway]")
+        log("failed [no gateway]")
     else
-        log_result(string.format("ok [%s/%s gw %s]", wan.ipaddr, wan.netmask, wan.gateway))
+        log(string.format("ok [%s/%s gw %s]", wan.ipaddr, wan.netmask, wan.gateway))
         return wan
     end
 end
@@ -244,10 +249,10 @@ testf.dns = function(arg)
     local out = pread("nslookup "..arg.host)
     local name, addr = out:match("Name:.-([%w%p]+).*Address 1: (%d+%.%d+%.%d+%.%d+)")
     if name and addr then
-        log_result(string.format("ok [%s -> %s]", name, addr))
+        log(string.format("ok [%s -> %s]", name, addr))
         return true
     else
-        log_result("failed")
+        log("failed")
     end
 end
 ---}}}
@@ -262,10 +267,10 @@ testf.http = function(arg)
     local bw = fsize(fn)/(finish-start)/1024
     update_stats(arg, bw)
     if arg.md5 == md5 then
-        log_result(string.format("ok [md5sum good, %.0fKB/s, avg %0.fKB/s]", bw, stats[arg].avg))
+        log(string.format("ok [md5sum good, %.0fKB/s, avg %0.fKB/s]", bw, stats[arg].avg))
         return true
     else
-        log_result("failed [md5sum mismatch]")
+        log("failed [md5sum mismatch]")
     end
     os.execute("rm "..fn)
 end

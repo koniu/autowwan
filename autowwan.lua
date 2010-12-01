@@ -1,3 +1,4 @@
+#!/usr/bin/env lua
 require("uci")
 require("iwinfo")
 

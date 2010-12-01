@@ -94,35 +94,31 @@ function get_uci_section()
     end
 end
 
-function update_config()
-    ucfg:load("autowwan")
+function load_config()
     log("reading config", logs.info)
+    -- load config from uci
+    ucfg:load("autowwan")
     cfg = ucfg:get_all("autowwan.config")
+    cfg = typify(cfg)
+    get_uci_section()
+    -- get ignored ssids into a table
     ignored = {}
     for i, ssid in ipairs(split(cfg.ignore_ssids, ",")) do
         ignored[ssid] = true
     end
-    cfg = typify(cfg)
+    -- fill missing options from defaults
     for k, v in pairs(defaults) do
         if not cfg[k] then cfg[k] = v end
     end
-    get_uci_section()
-end
-
-function update_presets()
-    ucfg:load("autowwan")
-    log("reading presets", logs.info)
+    -- get network presets from uci
     presets = {}
     ucfg:foreach("autowwan", "networks", function(net) presets[net.ssid] = typify(net) end)
-end
-
-function update_tests()
-    ucfg:load("autowwan")
-    log("reading tests", logs.info)
+    -- get test presets from uci
     local ts = {}
     ucfg:foreach("autowwan", "tests", function(test) table.insert(ts, typify(test)) end)
     if #ts > 0 then tests = ts else tests = default_tests end
 end
+
 --}}}
 --{{{ net functions
 ---{{{ update_connectable
@@ -182,9 +178,7 @@ function reconnect()
     log("reconnecting")
     local connected
     while not connected do
-        update_config()
-        update_presets()
-        update_tests()
+        load_config()
         update_range()
         update_connectable()
         for i, ap in ipairs(connectable) do
@@ -338,8 +332,7 @@ uwifi = uci.cursor()
 ucfg = uci.cursor()
 ustate = uci.cursor(ni, "/var/state")
 
-update_config()
-update_tests()
+load_config()
 
 stats = {}
 iter = 0

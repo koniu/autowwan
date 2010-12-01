@@ -10,7 +10,7 @@ defaults = {
     ping_failed_limit = 10,
     ping_stat_count = 10,
     ping_test_host = "8.8.8.8",
-    ping_opts = "-W 5",
+    ping_opts = "-W 5 -c 1",
     join_open = true,
     ignore_ssids = "IgnoreMe,AndMe,MeToo",
     http_test_url = "http://www.kernel.org/pub/linux/kernel/v2.6/ChangeLog-2.6.9",
@@ -171,8 +171,8 @@ end
 ---}}}
 ---{{{ ping
 function ping(host)
-    local out = pread(string.format("ping -c1 %s %s 2>/dev/null", cfg.ping_opts, host))
-    return tonumber(out:match("/(%d+%.%d+) ms"))
+    local out = pread(string.format("ping %s %s 2>/dev/null", cfg.ping_opts, host))
+    return tonumber(out:match("/(%d+%.%d+)/"))
 end
 ---}}}
 ---{{{ connect

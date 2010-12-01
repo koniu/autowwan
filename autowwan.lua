@@ -175,6 +175,44 @@ function ping(host)
     return tonumber(out:match("/(%d+%.%d+) ms"))
 end
 ---}}}
+---{{{ connect
+function connect(ap)
+    get_uci_section()
+    failed = cfg.ping_failed_limit
+    os.execute("ifdown wan")
+    log("connecting to ap: "..ap.ssid, logs.info)
+    uwifi:set("wireless", cfg.section, "ssid", ap.ssid)
+    uwifi:set("wireless", cfg.section, "encryption", presets[ap.ssid].encryption)
+    uwifi:set("wireless", cfg.section, "key", presets[ap.ssid].key)
+    uwifi:save("wireless")
+    uwifi:commit("wireless")
+    os.execute("wifi >& /dev/null")
+    sleep(cfg.conn_timeout)
+    if wifi_test() and ip_test() and ping_test() and dns_test() and http_test() then
+        log("connected!")
+        failed = 0
+        return true
+    end
+end
+---}}}
+---{{{ reconnect
+function reconnect()
+    log("reconnecting")
+    local connected
+    while not connected do
+        update_config()
+        update_presets()
+        update_range()
+        update_connectable()
+        for i, ap in ipairs(connectable) do
+            connected = connect(ap)
+            if connected then break end
+        end
+    end
+end
+---}}}
+--}}}
+--{{{ test functions
 ---{{{ ping_test
 function ping_test()
     log("ping test - ", logs.info, 1)
@@ -251,42 +289,6 @@ function http_test()
         log_result("failed [md5sum mismatch]")
     end
     os.execute("rm "..fn)
-end
----}}}
----{{{ connect
-function connect(ap)
-    get_uci_section()
-    failed = cfg.ping_failed_limit
-    os.execute("ifdown wan")
-    log("connecting to ap: "..ap.ssid, logs.info)
-    uwifi:set("wireless", cfg.section, "ssid", ap.ssid)
-    uwifi:set("wireless", cfg.section, "encryption", presets[ap.ssid].encryption)
-    uwifi:set("wireless", cfg.section, "key", presets[ap.ssid].key)
-    uwifi:save("wireless")
-    uwifi:commit("wireless")
-    os.execute("wifi >& /dev/null")
-    sleep(cfg.conn_timeout)
-    if wifi_test() and ip_test() and ping_test() and dns_test() and http_test() then
-        log("connected!")
-        failed = 0
-        return true
-    end
-end
----}}}
----{{{ reconnect
-function reconnect()
-    log("reconnecting")
-    local connected
-    while not connected do
-        update_config()
-        update_presets()
-        update_range()
-        update_connectable()
-        for i, ap in ipairs(connectable) do
-            connected = connect(ap)
-            if connected then break end
-        end
-    end
 end
 ---}}}
 --}}}

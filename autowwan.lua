@@ -245,6 +245,7 @@ function http_test()
     local bw = fsize(fn)/(finish-start)/1024
     if cfg.http_test_md5 == md5 then
         log_result(string.format("ok [md5sum good, %.0fKB/s]", bw))
+        return true
     else
         log_result("failed [md5sum mismatch]")
     end

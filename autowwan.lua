@@ -2,34 +2,6 @@
 require("uci")
 require("iwinfo")
 
---{{{ defaults
-defaults = {
-    iface = "wlan0",
-    conn_timeout = 10,
-    check_interval = 1,
-    ping_failed_limit = 10,
-    ping_stat_count = 10,
-    ping_test_host = "8.8.8.8",
-    ping_opts = "-W 5 -c 1",
-    join_open = true,
-    ignore_ssids = "IgnoreMe,AndMe,MeToo",
-    http_test_url = "http://www.kernel.org/pub/linux/kernel/v2.6/ChangeLog-2.6.9",
-    http_test_md5 = "b6594bd05e24b9ec400d742909360a2c",
-    http_test_dest = "/tmp",
-    dns_test_host = "google.com",
-}
-
-logs = {     
-    err     = { header = "error",     level = 0 },
-    warn    = { header = "warning", level = 1 },
-    info    = { header = "info",     level = 2 },
-    dbg     = { header = "debug",   level = 3 },
-}
-
-log_level = 2
-
---}}}
-
 --{{{ helper functions
 ---{{{ split
 function split(str, pat)
@@ -170,15 +142,14 @@ function update_range()
 end
 ---}}}
 ---{{{ ping
-function ping(host)
-    local out = pread(string.format("ping %s %s 2>/dev/null", cfg.ping_opts, host))
+function ping(host, opts)
+    local out = pread(string.format("ping %s %s 2>/dev/null", opts, host))
     return tonumber(out:match("/(%d+%.%d+)/"))
 end
 ---}}}
 ---{{{ connect
 function connect(ap)
     get_uci_section()
-    failed = cfg.ping_failed_limit
     os.execute("ifdown wan")
     log("connecting to ap: "..ap.ssid, logs.info)
     uwifi:set("wireless", cfg.section, "ssid", ap.ssid)
@@ -188,11 +159,14 @@ function connect(ap)
     uwifi:commit("wireless")
     os.execute("wifi >& /dev/null")
     sleep(cfg.conn_timeout)
-    if wifi_test() and ip_test() and ping_test() and dns_test() and http_test() then
-        log("connected!")
-        failed = 0
-        return true
+    for i, test in ipairs(tests) do
+        if test.conn then
+            local result = test.f(test)
+            if not result then return end
+        end
     end
+    log("connected!")
+    return true
 end
 ---}}}
 ---{{{ reconnect
@@ -214,12 +188,12 @@ end
 --}}}
 --{{{ test functions
 ---{{{ ping_test
-function ping_test()
+function ping_test(arg)
     log("ping test - ", logs.info, 1)
-    local p = ping(cfg.ping_test_host)
-    update_stats(p)
+    local p = ping(arg.host, arg.opts)
+    update_stats(arg, p)
     if p then
-        log_result(string.format("ok [%s, %.0fms, avg %.0fms, loss %.0f%%]", cfg.ping_test_host, p, stats.avg, stats.loss))
+        log_result(string.format("ok [%s, %.0fms, avg %.0fms, loss %.0f%%]", arg.host, p, stats[arg].avg, stats[arg].loss))
     else
         log_result("failed!")
     end
@@ -227,15 +201,16 @@ function ping_test()
 end
 ---}}}
 ---{{{ wifi_test
-function wifi_test()
+function wifi_test(arg)
     log("wifi test - ", logs.info, 1)
     local q = iwinfo.nl80211.quality(cfg.iface)
     local qmax = iwinfo.nl80211.quality_max(cfg.iface)
     local p = math.floor((q*100)/qmax)
+    update_stats(arg, p)
     if 
         iwinfo.nl80211.bssid(cfg.iface) and q > 0
     then 
-        log_result(string.format("ok [%s, %s%%]", iwinfo.nl80211.ssid(cfg.iface), p))
+        log_result(string.format("ok [%s, %s%%, avg %.0f%%]", iwinfo.nl80211.ssid(cfg.iface), p, stats[arg].avg))
         return p
     else
         log_result("failed!")
@@ -261,9 +236,9 @@ function ip_test()
 end
 ---}}}
 ---{{{ dns_test
-function dns_test()
+function dns_test(arg)
     log("dns test  - ", logs.info, 1)
-    local out = pread("nslookup "..cfg.dns_test_host)
+    local out = pread("nslookup "..arg.host)
     local name, addr = out:match("Name:.-([%w%p]+).*Address 1: (%d+%.%d+%.%d+%.%d+)")
     if name and addr then
         log_result(string.format("ok [%s -> %s]", name, addr))
@@ -274,16 +249,17 @@ function dns_test()
 end
 ---}}}
 ---{{{ http_test
-function http_test()
+function http_test(arg)
     log("http test - ", logs.info, 1)
     local start = os.time()
-    local fn = cfg.http_test_dest .. "/http_test"
-    os.execute(string.format("wget -O%s %s >& /dev/null", fn, cfg.http_test_url))
+    local fn = arg.dest .. "/http_test"
+    os.execute(string.format("wget -O%s %s >& /dev/null", fn, arg.url))
     local finish = os.time()
     local md5 = pread("md5sum "..fn):match("(%w+)")
     local bw = fsize(fn)/(finish-start)/1024
-    if cfg.http_test_md5 == md5 then
-        log_result(string.format("ok [md5sum good, %.0fKB/s]", bw))
+    update_stats(arg, bw)
+    if arg.md5 == md5 then
+        log_result(string.format("ok [md5sum good, %.0fKB/s, avg %0.fKB/s]", bw, stats[arg].avg))
         return true
     else
         log_result("failed [md5sum mismatch]")
@@ -293,56 +269,91 @@ end
 ---}}}
 --}}}
 --{{{ stat functions
-function update_stats(p)
-    table.insert(pings, 1, p)
-    if table.maxn(pings) > cfg.ping_stat_count then
-        table.remove(pings,table.maxn(pings))
+function update_stats(arg, res)
+    local stat = stats[arg] or {}
+    table.insert(stat, 1, res or "#fail#")
+    if #stat > cfg.stat_buffer then
+        table.remove(stat, cfg.stat_buffer)
     end
-    local count = table.maxn(pings)
     local lost = 0
     local total = 0
-    table.foreachi(pings, function(i,p) 
-        if p then 
-            total = total + p  
+    for i, res in ipairs(stat) do
+        if res ~= "#fail#" then
+            total = total + res
         else
             lost = lost + 1
         end
-    end)
-    stats.loss = (lost*100)/count
-    stats.avg = total/(count-lost)
+    end
+    stat.loss = (lost*100)/#stat
+    stat.avg = total/(#stat-lost)
+    stats[arg] = stat
 end
 --}}}
 
---{{{ init
-pings = {}
-stats = {}
+--{{{ defaults
+defaults = {
+    iface = "wlan0",
+    join_open = true,
+    ignore_ssids = "IgnoreMe,AndMe,MeToo",
+    interval = 1,
+    conn_timeout = 10,
+    stat_buffer = 50,
+}
 
+tests = {
+    { f = wifi_test, conn = true, interval = 1, retry_limit = 1 },
+    { f = ip_test, conn = true },
+    { f = ping_test, conn = true, interval = 1, retry_limit = 10,
+        host = "8.8.8.8",
+        opts = "-W 5 -c 1" },
+    { f = dns_test, conn = true, host = "google.com" },
+    { f = http_test, conn = true,
+        url = "http://www.kernel.org/pub/linux/kernel/v2.6/ChangeLog-2.6.9",
+        md5 = "b6594bd05e24b9ec400d742909360a2c",
+        dest ="/tmp" },
+}
+
+logs = {
+    err     = { header = "error",     level = 0 },
+    warn    = { header = "warning", level = 1 },
+    info    = { header = "info",     level = 2 },
+    dbg     = { header = "debug",   level = 3 },
+}
+
+log_level = 2
+
+--}}}
+--{{{ init
 uwifi = uci.cursor()
 ucfg = uci.cursor()
 ustate = uci.cursor(ni, "/var/state")
 
 update_config()
 
-failed = cfg.ping_failed_limit
+stats = {}
+iter = 0
 --}}}
 --{{{ main loop
 while true do
-    if not wifi_test() then
-        reconnect()
-    else 
-        local p = ping_test()
-        if p then
-            failed = 0
-        else
-            if failed == cfg.ping_failed_limit then
-                log("missed "..cfg.ping_failed_limit.." pings")
-                reconnect()
+    for i, test in ipairs(tests) do
+        if test.interval and math.fmod(iter, test.interval) == 0 then
+            local result = test.f(test)
+            if not result then
+                test.failed = (test.failed or 0) + 1
+                if test.failed >= test.retry_limit then
+                    log("reached retry limit")
+                    stats = {}
+                    iter = 0
+                    reconnect()
+                    break
+                end
             else
-                failed = failed + 1
+                test.failed = 0
             end
         end
     end
-    sleep(cfg.check_interval)
+    iter = iter + 1
+    sleep(cfg.interval)
 end
 --}}}
 -- vim: foldmethod=marker:filetype=lua:expandtab:shiftwidth=4:tabstop=4:softtabstop=4

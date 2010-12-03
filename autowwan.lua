@@ -333,7 +333,7 @@ log_levels = { "alert", "crit", "err", "warning", "notice", "info", "debug" }
 --{{{ init
 uwifi = uci.cursor()
 ucfg = uci.cursor()
-ustate = uci.cursor(ni, "/var/state")
+ustate = uci.cursor(nil, "/var/state")
 
 load_config()
 

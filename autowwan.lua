@@ -171,6 +171,7 @@ function connect(ap)
     uwifi:commit("wireless")
     os.execute("wifi >& /dev/null")
     sleep(cfg.conn_timeout)
+    stats = {}
     for i, test in ipairs(tests) do
         if test.conn then
             local result = testf[test.type](test)
@@ -344,7 +345,6 @@ while true do
                 test.failed = (test.failed or 0) + 1
                 if test.failed >= test.retry_limit then
                     log(string.format("%s test - reached retry limit [%d]", test.type, test.retry_limit), 5)
-                    stats = {}
                     iter = 0
                     reconnect()
                     break

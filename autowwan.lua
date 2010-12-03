@@ -97,8 +97,8 @@ function get_uci_section()
     cfg.iface = ustate:get("wireless", cfg.section, "ifname")
     cfg.device = ustate:get("wireless", cfg.section, "device")
 
-    if not (cfg.section or cfg.iface or cfg.device) then
-        log("no suitable device or interface found", 3)
+    if not (cfg.section and cfg.iface and cfg.device) then
+        log("no suitable device or interface found - exiting", 3)
         os.exit(1)
     end
 end

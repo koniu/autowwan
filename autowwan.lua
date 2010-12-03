@@ -96,6 +96,7 @@ function get_uci_section()
     ustate:load("wireless")
     cfg.iface = ustate:get("wireless", cfg.section, "ifname")
     cfg.device = ustate:get("wireless", cfg.section, "device")
+    cfg.network = ustate:get("wireless", cfg.section, "network")
 
     if not (cfg.section and cfg.iface and cfg.device) then
         log("no suitable device or interface found - exiting", 3)
@@ -164,7 +165,7 @@ end
 ---{{{ connect
 function connect(ap)
     get_uci_section()
-    os.execute("ifdown wan")
+    os.execute("ifdown "..cfg.network)
     log(string.format("connecting to ap %s [%d%%, ch %d]", ap.ssid, math.floor((ap.quality*100)/ap.quality_max), ap.channel), 5)
     uwifi:set("wireless", cfg.section, "ssid", ap.ssid)
     uwifi:set("wireless", cfg.section, "encryption", presets[ap.ssid].encryption)
@@ -234,7 +235,7 @@ end
 ---{{{ ip
 testf.ip = function()
     log("ip test   - ", nil, true)
-    wan = ustate:get_all("network", "wan")
+    local wan = ustate:get_all("network", cfg.network)
     if not wan then
         log("failed [interface down]")
     elseif not wan.up then

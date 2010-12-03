@@ -95,9 +95,10 @@ function get_uci_section()
 
     ustate:load("wireless")
     cfg.iface = ustate:get("wireless", cfg.section, "ifname")
+    cfg.device = ustate:get("wireless", cfg.section, "device")
 
-    if not (cfg.section or cfg.iface) then
-        log("no suitable interfaces found", 3)
+    if not (cfg.section or cfg.iface or cfg.device) then
+        log("no suitable device or interface found", 3)
         os.exit(1)
     end
 end
@@ -169,7 +170,7 @@ function connect(ap)
     uwifi:set("wireless", cfg.section, "key", presets[ap.ssid].key)
     uwifi:save("wireless")
     uwifi:commit("wireless")
-    os.execute("wifi >& /dev/null")
+    os.execute("wifi reload "..cfg.device.." >& /dev/null")
     sleep(cfg.conn_timeout)
     stats = {}
     for i, test in ipairs(tests) do

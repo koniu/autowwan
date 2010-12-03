@@ -164,7 +164,7 @@ end
 ---{{{ connect
 function connect(ap)
     get_uci_section()
-    log("connecting to ap: "..ap.ssid, 5)
+    log(string.format("connecting to ap %s [%d%%, ch %d]", ap.ssid, math.floor((ap.quality*100)/ap.quality_max), ap.channel), 5)
     uwifi:set("wireless", cfg.section, "ssid", ap.ssid)
     uwifi:set("wireless", cfg.section, "encryption", presets[ap.ssid].encryption)
     uwifi:set("wireless", cfg.section, "key", presets[ap.ssid].key)

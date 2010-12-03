@@ -93,8 +93,11 @@ function get_uci_section()
     uwifi:foreach("wireless", "wifi-iface", function(s)
         if s.autowwan and s.mode == "sta" then cfg.section=s[".name"] end end)
 
-    if not cfg.section then
-        log("no suitable interfaces found", 6)
+    ustate:load("wireless")
+    cfg.iface = ustate:get("wireless", cfg.section, "ifname")
+
+    if not (cfg.section or cfg.iface) then
+        log("no suitable interfaces found", 3)
         os.exit(1)
     end
 end
@@ -160,7 +163,6 @@ end
 ---{{{ connect
 function connect(ap)
     get_uci_section()
-    os.execute("ifdown wan")
     log("connecting to ap: "..ap.ssid, 5)
     uwifi:set("wireless", cfg.section, "ssid", ap.ssid)
     uwifi:set("wireless", cfg.section, "encryption", presets[ap.ssid].encryption)
@@ -300,7 +302,6 @@ end
 
 --{{{ defaults
 defaults = {
-    iface = "wlan0",
     join_open = true,
     ignore_ssids = "IgnoreMe,AndMe,MeToo",
     interval = 1,

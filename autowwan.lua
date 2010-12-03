@@ -97,6 +97,7 @@ function get_uci_section()
     cfg.iface = ustate:get("wireless", cfg.section, "ifname")
     cfg.device = ustate:get("wireless", cfg.section, "device")
     cfg.network = ustate:get("wireless", cfg.section, "network")
+    iw = iwinfo[iwinfo.type(cfg.iface)]
 
     if not (cfg.section and cfg.iface and cfg.device) then
         log("no suitable device or interface found - exiting", 3)
@@ -153,7 +154,7 @@ end
 function scan()
     log("scanning: ", 5, true)
     os.execute("ifconfig " .. cfg.iface .. " up")
-    return iwinfo.nl80211.scanlist(cfg.iface)
+    return iw.scanlist(cfg.iface)
 end
 ---}}}
 ---{{{ ping
@@ -218,14 +219,14 @@ end
 ---{{{ wifi
 testf.wifi = function(arg)
     log("wifi test - ", nil, true)
-    local q = iwinfo.nl80211.quality(cfg.iface)
-    local qmax = iwinfo.nl80211.quality_max(cfg.iface)
+    local q = iw.quality(cfg.iface)
+    local qmax = iw.quality_max(cfg.iface)
     local p = math.floor((q*100)/qmax)
     update_stats(arg, p)
     if 
-        iwinfo.nl80211.bssid(cfg.iface) and q > 0
+        iw.bssid(cfg.iface) and q > 0
     then 
-        log(string.format("ok [%s, %s%%, avg %.0f%%]", iwinfo.nl80211.ssid(cfg.iface), p, stats[arg].avg))
+        log(string.format("ok [%s, %s%%, avg %.0f%%]", iw.ssid(cfg.iface), p, stats[arg].avg))
         return p
     else
         log("failed!")

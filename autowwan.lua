@@ -157,6 +157,9 @@ function filter_results(results)
     end
     table.sort(connectable, pref_sort)
     log("found "..#connectable.." out of "..#results)
+    for i, ap in ipairs(connectable) do
+        log(string.format("%16s %-20s %3s%%, ch %s, %s",ap.bssid, ap.ssid, math.floor((ap.quality*100)/ap.quality_max), ap.channel, ap.enc),6)
+    end
     return connectable
 end
 ---}}}

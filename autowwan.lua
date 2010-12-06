@@ -35,13 +35,7 @@ end
 ---}}}
 ---{{{ pref_sort 
 function pref_sort(a, b)
-    local ascore = presets[a.ssid].score
-    local bscore = presets[b.ssid].score
-    if ascore or bscore then
-        return (ascore or 0) > (bscore or 0)
-    else
-        return a.signal > b.signal
-    end
+    return a.signal + a.score > b.signal + b.score
 end
 ---}}}
 ---{{{ sleep 

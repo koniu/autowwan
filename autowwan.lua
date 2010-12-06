@@ -225,8 +225,10 @@ testf.wifi = function(arg)
     update_stats(arg, p)
     if 
         iw.bssid(cfg.iface) and q > 0
-    then 
-        log(string.format("ok [%s, %s%%, avg %.0f%%]", iw.ssid(cfg.iface), p, stats[arg].avg))
+    then
+        local bitrate = iw.bitrate(cfg.iface) / 1000
+        local ssid = iw.ssid(cfg.iface)
+        log(string.format("ok [%s, %s%%, avg %.0f%%, %.1fMbps]", ssid, p, stats[arg].avg, bitrate))
         return p
     else
         log("failed!")

@@ -251,6 +251,7 @@ end
 ---{{{ ip
 testf.ip = function()
     log("ip test   - ", nil, true)
+    ustate:load("network")
     local wan = ustate:get_all("network", cfg.network)
     if not wan then
         log("failed [interface down]")

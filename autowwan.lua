@@ -151,11 +151,12 @@ end
 function filter_results(results)
     local connectable = {}
     for i, ap in ipairs(results) do
-        if not (ignored[ap.ssid] or (presets[ap.ssid] and presets[ap.ssid].ignore)) then
-            if (not ap.encryption.enabled) and cfg.join_open then
-                table.insert(connectable, ap)
-                presets[ap.ssid] = { encryption = "none", key = "", score = 0 }
-            elseif presets[ap.ssid] then
+        local preset = presets[ap.ssid]
+        if not (ignored[ap.ssid] or (preset and preset.ignore)) then
+            if preset or ((not ap.encryption.enabled) and cfg.join_open) then
+                ap.enc = get_enc(ap)
+                ap.key = (preset and preset.key) or ""
+                ap.score = (preset and preset.score) or 0
                 table.insert(connectable, ap)
             end
         end
@@ -184,8 +185,8 @@ function connect(ap)
     os.execute("ifdown "..cfg.network)
     log(string.format("connecting to ap %s [%d%%, ch %d]", ap.ssid, math.floor((ap.quality*100)/ap.quality_max), ap.channel), 5)
     uwifi:set("wireless", cfg.section, "ssid", ap.ssid)
-    uwifi:set("wireless", cfg.section, "encryption", presets[ap.ssid].encryption)
-    uwifi:set("wireless", cfg.section, "key", presets[ap.ssid].key)
+    uwifi:set("wireless", cfg.section, "encryption", ap.enc)
+    uwifi:set("wireless", cfg.section, "key", ap.key)
     uwifi:set("wireless", cfg.device, "channel", ap.channel)
     uwifi:save("wireless")
     uwifi:commit("wireless")

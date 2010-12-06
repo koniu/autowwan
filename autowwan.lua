@@ -66,6 +66,21 @@ function fsize(file)
     return size
 end
 ---}}}
+---{{{ get_enc
+function get_enc(ap)
+    if ap.encryption.enabled then
+        if ap.encryption.wep then
+            return "wep"
+        elseif ap.encryption.wpa == 1 then
+            return "psk"
+        elseif ap.encryption.wpa == 2 then
+            return "psk2"
+        end
+    else
+        return "none"
+    end
+end
+---}}}
 --}}}
 --{{{ log functions
 function log(msg, level, partial)

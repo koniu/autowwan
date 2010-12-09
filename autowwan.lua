@@ -5,6 +5,7 @@ require("iwinfo")
 --{{{ helper functions
 ---{{{ split
 function split(str, pat)
+   if not str then return end
    local t = {}  -- NOTE: use {n = 0} in Lua-5.0
    local fpat = "(.-)" .. pat
    local last_end = 1
@@ -101,6 +102,10 @@ function get_uci_section()
     uwifi:load("wireless")
     uwifi:foreach("wireless", "wifi-iface", function(s)
         if s.autowwan and s.mode == "sta" then cfg.section=s[".name"] end end)
+    if not cfg.section then
+        log("no interface configured for use with autowwan - exiting", 3)
+        os.exit(1)
+    end
 
     ustate:load("wireless")
     cfg.iface = ustate:get("wireless", cfg.section, "ifname")
@@ -118,12 +123,11 @@ function load_config()
     log("reading config")
     -- load config from uci
     ucfg:load("autowwan")
-    cfg = ucfg:get_all("autowwan.config")
-    cfg = typify(cfg)
+    cfg = typify(ucfg:get_all("autowwan.config") or {})
     get_uci_section()
     -- get ignored ssids into a table
     ignored = {}
-    for i, ssid in ipairs(split(cfg.ignore_ssids, ",")) do
+    for i, ssid in ipairs(split(cfg.ignore_ssids, ",") or {}) do
         ignored[ssid] = true
     end
     -- fill missing options from defaults

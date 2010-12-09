@@ -1,6 +1,6 @@
 #!/usr/bin/env lua
 require("uci")
-require("iwinfo")
+pcall(require,"iwinfo")
 
 --{{{ helper functions
 ---{{{ split
@@ -111,7 +111,7 @@ function get_uci_section()
     cfg.iface = ustate:get("wireless", cfg.section, "ifname")
     cfg.device = ustate:get("wireless", cfg.section, "device")
     cfg.network = ustate:get("wireless", cfg.section, "network")
-    iw = iwinfo[iwinfo.type(cfg.iface)]
+    iw = (iwinfo and iwinfo[iwinfo.type(cfg.iface)]) or iwinfo_emul
 
     if not (cfg.section and cfg.iface and cfg.device) then
         log("no suitable device or interface found - exiting", 3)
@@ -145,6 +145,55 @@ end
 
 --}}}
 --{{{ net functions
+---{{{ iwinfo emulation with wireless-tools
+function iwlist(iface)
+    local results = {}
+    local list = split(pread("/usr/sbin/iwlist "..iface.." scan"), "Cell")
+    table.remove(list, 1)
+    for i, res in ipairs(list) do
+        local ap = {
+            bssid = res:match("Address: (.-)\n"),
+            ssid = res:match("ESSID:\"(.-)\""),
+            channel = tonumber(res:match("Channel:(.-)\n")),
+            signal = tonumber(res:match("Signal level[:=](.-) dBm")),
+            quality = tonumber(res:match("Quality:(%d+)/")),
+            quality_max = tonumber(res:match("Quality:%d+/(%d+)")),
+            encryption = { enabled = true, wep = false, wpa = 0 },
+        }
+        if not res:find("Encryption key:on") then
+            ap.encryption.enabled = false
+        elseif res:find("WPA2 Version 1") then
+            ap.encryption.wpa = 2
+        elseif res:find("WPA Version 1") then
+            ap.encryption.wpa = 1
+        else
+            ap.encryption.wep = true
+        end
+        table.insert(results, ap)
+    end
+    return results
+end
+function iwconfig(iface)
+    local o = pread("/usr/sbin/iwconfig "..iface)
+    local r = {
+        bitrate = tonumber(o:match("Bit Rate=([%d%.]+) Mb/s")) * 1000,
+        quality = tonumber(o:match("Quality[:=](%d+)")),
+        quality_max = tonumber(o:match("Quality=%d+/(%d+) ")) or 5,
+        bssid = o:match("Access Point: (.-)\n"),
+        ssid = o:match("ESSID:\"(.-)\""),
+    }
+    return r
+end
+
+iwinfo_emul = {
+    quality = function(iface) return iwconfig(iface).quality end,
+    quality_max = function(iface) return iwconfig(iface).quality_max end,
+    bssid = function(iface) return iwconfig(iface).bssid end,
+    ssid = function(iface) return iwconfig(iface).ssid end,
+    bitrate = function(iface) return iwconfig(iface).bitrate end,
+    scanlist = function(iface) return iwlist(iface) end
+}
+---}}}
 ---{{{ filter_results
 function filter_results(results)
     local connectable = {}

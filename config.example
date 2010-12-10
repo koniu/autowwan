@@ -17,7 +17,7 @@ config core global
   option syslog         false   # log using syslog
   option fake_mac       false   # spoofed MAC addr, 'auto' uses macchanger
   option macchanger     "-r"    # options to macchanger
-  option join_open      true    # don't try to auto-join open networks
+  option join_open      true    # auto-join open networks
   option ignore_ssids   IgnoreMe,AndMe,MeToo
                                 # don't try to join these networks
 

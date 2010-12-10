@@ -352,6 +352,21 @@ testf.http = function(arg)
     os.execute("rm "..fn)
 end
 ---}}}
+---{{{ pub_ip
+testf.pub_ip = function(arg)
+    log("ext_ip test - ", nil, true)
+    local out = pread("wget -qO- "..arg.url)
+    local addr = out:match(arg.pattern)
+    if addr then
+        local out = pread("nslookup "..addr)
+        local name = out:match("Name.*Address 1: %d+%.%d+%.%d+%.%d+ (.*)\n") or ""
+        log(string.format("ok [%s -> %s]", addr, name))
+        return true
+    else
+        log("failed")
+    end
+end
+---}}}
 --}}}
 --{{{ stat functions
 function update_stats(arg, res)
@@ -396,6 +411,9 @@ default_tests = {
         url = "http://www.kernel.org/pub/linux/kernel/v2.6/ChangeLog-2.6.9",
         md5 = "b6594bd05e24b9ec400d742909360a2c",
         dest ="/tmp" },
+    { type = "pub_ip", conn = true,
+        url = "http://checkip.dyndns.org/",
+        pattern = "IP Address: (%d+%.%d+%.%d+%.%d+)", },
 }
 
 log_levels = { "alert", "crit", "err", "warning", "notice", "info", "debug" }

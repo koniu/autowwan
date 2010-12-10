@@ -123,7 +123,7 @@ function load_config()
     log("reading config")
     -- load config from uci
     ucfg:load("autowwan")
-    cfg = typify(ucfg:get_all("autowwan.config") or {})
+    cfg = typify(ucfg:get_all("autowwan.global") or {})
     get_uci_section()
     -- get ignored ssids into a table
     ignored = {}
@@ -136,10 +136,10 @@ function load_config()
     end
     -- get network presets from uci
     presets = {}
-    ucfg:foreach("autowwan", "networks", function(net) presets[net.bssid or net.ssid] = typify(net) end)
+    ucfg:foreach("autowwan", "network", function(net) presets[net.bssid or net.ssid] = typify(net) end)
     -- get test presets from uci
     local ts = {}
-    ucfg:foreach("autowwan", "tests", function(test) table.insert(ts, typify(test)) end)
+    ucfg:foreach("autowwan", "test", function(test) table.insert(ts, typify(test)) end)
     if #ts > 0 then tests = ts else tests = default_tests end
 end
 

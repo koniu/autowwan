@@ -176,7 +176,7 @@ end
 function iwconfig(iface)
     local o = pread("/usr/sbin/iwconfig "..iface)
     local r = {
-        bitrate = tonumber(o:match("Bit Rate=([%d%.]+) Mb/s")) * 1000,
+        bitrate = (tonumber(o:match("Bit Rate=([%d%.]+) Mb/s")) or 0) * 1000,
         quality = tonumber(o:match("Quality[:=](%d+)")),
         quality_max = tonumber(o:match("Quality=%d+/(%d+) ")) or 5,
         bssid = o:match("Access Point: (.-)\n"),

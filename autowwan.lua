@@ -29,7 +29,7 @@ function typify(t)
     for k, v in pairs(t) do
         vn = tonumber(v)
         if vn and k ~= "key" then t[k] = vn end
-        if v == 'false' then v = false end
+        if v == 'false' then t[k] = false end
     end
     return t
 end

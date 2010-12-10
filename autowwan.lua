@@ -312,7 +312,7 @@ end
 testf = {}
 ---{{{ ping
 testf.ping = function(arg)
-    log("ping test - ", nil, true)
+    log("ping test  - ", nil, true)
     local p = ping(arg.host, arg.opts)
     update_stats(arg, p)
     if p then
@@ -325,7 +325,7 @@ end
 ---}}}
 ---{{{ wifi
 testf.wifi = function(arg)
-    log("wifi test - ", nil, true)
+    log("wifi test  - ", nil, true)
     local q = iw.quality(cfg.iface)
     local qmax = iw.quality_max(cfg.iface)
     local p = math.floor((q*100)/qmax)
@@ -344,7 +344,7 @@ end
 ---}}}
 ---{{{ ip
 testf.ip = function()
-    log("ip test   - ", nil, true)
+    log("ip test    - ", nil, true)
     ustate:load("network")
     local wan = ustate:get_all("network", cfg.network)
     if not wan then
@@ -363,7 +363,7 @@ end
 ---}}}
 ---{{{ dns
 testf.dns = function(arg)
-    log("dns test  - ", nil, true)
+    log("dns test   - ", nil, true)
     local serv, name, addr, rev = nslookup(arg.host)
     if name and addr then
         log(string.format("ok [%s -> %s]", name, addr))
@@ -375,7 +375,7 @@ end
 ---}}}
 ---{{{ http
 testf.http = function(arg)
-    log("http test - ", nil, true)
+    log("http test  - ", nil, true)
     local start = os.time()
     local fn = arg.dest .. "/http_test"
     os.execute(string.format("wget -O%s %s >& /dev/null", fn, arg.url))
@@ -392,9 +392,9 @@ testf.http = function(arg)
     os.execute("rm "..fn)
 end
 ---}}}
----{{{ pub_ip
-testf.pub_ip = function(arg)
-    log("ext_ip test - ", nil, true)
+---{{{ extip
+testf.extip = function(arg)
+    log("extip test - ", nil, true)
     local out = pread("wget -qO- "..arg.url)
     local ip = out:match(arg.pattern)
     if ip then
@@ -452,7 +452,7 @@ default_tests = {
         url = "http://www.kernel.org/pub/linux/kernel/v2.6/ChangeLog-2.6.9",
         md5 = "b6594bd05e24b9ec400d742909360a2c",
         dest ="/tmp" },
-    { type = "pub_ip", conn = true,
+    { type = "extip", conn = true,
         url = "http://checkip.dyndns.org/",
         pattern = "IP Address: (%d+%.%d+%.%d+%.%d+)", },
 }

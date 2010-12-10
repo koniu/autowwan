@@ -136,7 +136,7 @@ function load_config()
     end
     -- get network presets from uci
     presets = {}
-    ucfg:foreach("autowwan", "networks", function(net) presets[net.ssid] = typify(net) end)
+    ucfg:foreach("autowwan", "networks", function(net) presets[net.bssid or net.ssid] = typify(net) end)
     -- get test presets from uci
     local ts = {}
     ucfg:foreach("autowwan", "tests", function(test) table.insert(ts, typify(test)) end)
@@ -198,8 +198,9 @@ iwinfo_emul = {
 function filter_results(results)
     local connectable = {}
     for i, ap in ipairs(results) do
-        local preset = presets[ap.ssid]
-        if not (ignored[ap.ssid] or (preset and preset.ignore)) then
+        local preset = presets[ap.bssid] or presets[ap.ssid]
+        ap.ssid = ap.ssid or (preset and preset.ssid)
+        if ap.ssid and not (ignored[ap.ssid] or (preset and preset.ignore)) then
             if preset or ((not ap.encryption.enabled) and cfg.join_open) then
                 ap.enc = get_enc(ap)
                 ap.key = (preset and preset.key) or ""
@@ -242,6 +243,7 @@ function connect(ap)
     os.execute("ifdown "..cfg.network)
     log(string.format("connecting to ap %s [%d%%, ch %d]", ap.ssid, math.floor((ap.quality*100)/ap.quality_max), ap.channel), 5)
     uwifi:set("wireless", cfg.section, "ssid", ap.ssid)
+    uwifi:set("wireless", cfg.section, "bssid", ap.bssid)
     uwifi:set("wireless", cfg.section, "encryption", ap.enc)
     uwifi:set("wireless", cfg.section, "key", ap.key)
     uwifi:set("wireless", cfg.device, "channel", ap.channel)

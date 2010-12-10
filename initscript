@@ -1,0 +1,16 @@
+#!/bin/sh /etc/rc.common
+# Copyright (C) 2010 koniu <gkusnierz@gmail.com>
+
+START=90
+BINARY="/root/git/autowwan/autowwan.lua"
+PIDFILE="/var/run/autowwan.pid"
+
+start() {
+	[ -x "$BINARY" ] || exit 1
+	rm -f $PIDFILE
+	start-stop-daemon -S -q -b -x $BINARY -m -p $PIDFILE
+}
+
+stop() {
+	[ -s "$PIDFILE" ] && start-stop-daemon -K -q -p $PIDFILE
+}

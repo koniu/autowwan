@@ -229,6 +229,13 @@ function ping(host, opts)
     return tonumber(out:match("/(%d+%.%d+)/"))
 end
 ---}}}
+---{{{ nslookup
+function nslookup(arg)
+    local out = pread("nslookup "..arg)
+    local serv, name, addr, rev = out:match("Server:.-(%d+%.%d+%.%d+%.%d+)\n.-Name:.-([%w%p]+).*Address 1: (%d+%.%d+%.%d+%.%d+) (.+)\n")
+    return serv, name, addr, rev
+end
+---}}}
 ---{{{ connect
 function connect(ap)
     get_uci_section()
@@ -323,8 +330,7 @@ end
 ---{{{ dns
 testf.dns = function(arg)
     log("dns test  - ", nil, true)
-    local out = pread("nslookup "..arg.host)
-    local name, addr = out:match("Name:.-([%w%p]+).*Address 1: (%d+%.%d+%.%d+%.%d+)")
+    local serv, name, addr, rev = nslookup(arg.host)
     if name and addr then
         log(string.format("ok [%s -> %s]", name, addr))
         return true
@@ -356,11 +362,10 @@ end
 testf.pub_ip = function(arg)
     log("ext_ip test - ", nil, true)
     local out = pread("wget -qO- "..arg.url)
-    local addr = out:match(arg.pattern)
-    if addr then
-        local out = pread("nslookup "..addr)
-        local name = out:match("Name.*Address 1: %d+%.%d+%.%d+%.%d+ (.*)\n") or ""
-        log(string.format("ok [%s -> %s]", addr, name))
+    local ip = out:match(arg.pattern)
+    if ip then
+        local serv, name, addr, rev = nslookup(ip)
+        log(string.format("ok [%s -> %s]", ip, rev))
         return true
     else
         log("failed")

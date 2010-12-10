@@ -398,7 +398,7 @@ testf.extip = function(arg)
     local out = pread("wget -qO- "..arg.url)
     local ip = out:match(arg.pattern)
     if ip then
-        local serv, name, addr, rev = nslookup(ip)
+        local serv, name, addr, rev = nslookup(ip, arg.dns)
         log(string.format("ok [%s -> %s]", ip, rev))
         return true
     else
@@ -454,7 +454,8 @@ default_tests = {
         dest ="/tmp" },
     { type = "extip", conn = true,
         url = "http://checkip.dyndns.org/",
-        pattern = "IP Address: (%d+%.%d+%.%d+%.%d+)", },
+        pattern = "IP Address: (%d+%.%d+%.%d+%.%d+)",
+        dns = "8.8.8.8" },
 }
 
 log_levels = { "alert", "crit", "err", "warning", "notice", "info", "debug" }

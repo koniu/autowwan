@@ -62,7 +62,7 @@ config network
 ## Given test type can be used more than once, with different options.
 ##
 ## conn, interval and retry_limit are common to all test types and optional.
-## All other options for a given test type are required.
+## All other options for a given test type are required unless stated otherwise.
 
 config test
   option type           wifi  # test type
@@ -100,4 +100,5 @@ config test
   option conn           true
   option url            http://checkip.dyndns.org/          # url to open
   option pattern        "IP Address: (%d+%.%d+%.%d+%.%d+)"  # pattern to get IP from
+  option dns            8.8.8.8                             # server for reverse lookup (optional)
 

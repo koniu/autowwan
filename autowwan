@@ -232,8 +232,8 @@ function ping(host, opts)
 end
 ---}}}
 ---{{{ nslookup
-function nslookup(arg)
-    local out = pread("nslookup "..arg)
+function nslookup(host, server)
+    local out = pread(string.format("nslookup %s %s", host, server or ""))
     local serv, name, addr, rev = out:match("Server:.-(%d+%.%d+%.%d+%.%d+)\n.-Name:.-([%w%p]+).*Address 1: (%d+%.%d+%.%d+%.%d+) (.+)\n")
     return serv, name, addr, rev
 end

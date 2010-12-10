@@ -1,0 +1,103 @@
+# This file is an _example_ of what can go in /etc/config/autowwan.
+# It's intended to demonstrate all possible options and their defaults.
+# autowwan re-reads the settings on each reconnection.
+# All settings can be made via uci utility.
+
+
+# GENERAL SETTINGS
+
+## All settings are optional.
+## Values below reflect the defaults.
+
+config core global
+  option conn_timeout   10      # timeout for establishing connection (in seconds)
+  option interval       1       # time between test iterations (in seconds)
+  option stat_buffer    50      # calculate statistics based on this many iterations
+  option log_level      5       # verbosity of output
+  option syslog         false   # log using syslog
+  option fake_mac       false   # spoofed MAC addr, 'auto' uses macchanger
+  option macchanger     "-r"    # options to macchanger
+  option join_open      true    # don't try to auto-join open networks
+  option ignore_ssids   IgnoreMe,AndMe,MeToo
+                                # don't try to join these networks
+
+
+
+# AP PRESETS
+
+## All entries are optional.
+## Either 'ssid' or 'bssid' option per entry is required.
+## For connecting to a hidden networks both of the above are required.
+## All other other options are optional.
+## 'fake_mac' option here overrides the global setting.
+
+config network
+  option ssid       MyBasicAP           # network ESSID
+  option key        0123456789          # network key
+
+config network
+  option bssid      AA:BB:CC:DD:EE:FF   # network BSSID
+  option key        secret_password     # network password
+  option score      50                  # connection's priority
+  option fake_mac   auto                # spoof client MAC with macchanger
+
+config network
+  option ssid       Hidden_Network_With_MAC_Filter
+  option bssid      01:23:45:67:89:00
+  option key        very_secret_password
+  option fake_mac   00:11:22:33:44:55   # spoof client MAC with a known one
+
+config network
+  option ssid       im_very_slow
+  option key        fuckbush
+  option ignore     1                   # don't connect to this network
+
+
+
+# TEST SETTINGS 
+
+## Entries below reflect the default set of tests.
+## Any entries here will override the default set.
+## Order of entries affects the order of test execution.
+## Given test type can be used more than once, with different options.
+##
+## conn, interval and retry_limit are common to all test types and optional.
+## All other options for a given test type are required.
+
+config test
+  option type           wifi  # test type
+  option conn           true  # run on connection to AP
+  option interval       1     # run every N intervals
+  option retry_limit    1     # reconnect after N consecutive failures
+
+config test
+  option type           ip
+  option conn           true
+
+config test
+  option type           ping
+  option conn           true
+  option interval       1
+  option retry_limit    10
+  option host           8.8.8.8      # IP or host to ping
+  option opts           "-W 5 -c 1"  # extra arguments to ping
+
+config test
+  option type           dns
+  option conn           true
+  option host           google.com   # hostname to resolve
+
+config test
+  option type           http
+  option conn           true
+  option dest           /tmp                                # download dir
+  option md5            b6594bd05e24b9ec400d742909360a2c    # expected md5sum of url's content
+  option url            http://www.kernel.org/pub/linux/kernel/v2.6/ChangeLog-2.6.9
+                                                            # url to grab
+
+config test
+  option type           extip
+  option conn           true
+  option url            http://checkip.dyndns.org/          # url to open
+  option pattern        "IP Address: (%d+%.%d+%.%d+%.%d+)"  # pattern to get IP from
+

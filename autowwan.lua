@@ -205,6 +205,7 @@ function filter_results(results)
                 ap.enc = get_enc(ap)
                 ap.key = (preset and preset.key) or ""
                 ap.score = (preset and preset.score) or 0
+                ap.fake_mac = preset and preset.fake_mac
                 table.insert(connectable, ap)
             end
         end
@@ -249,6 +250,18 @@ function connect(ap)
     uwifi:set("wireless", cfg.device, "channel", ap.channel)
     uwifi:save("wireless")
     uwifi:commit("wireless")
+
+    local fake_mac
+    if ap.fake_mac ~= nil then fake_mac = ap.fake_mac else fake_mac = cfg.fake_mac end
+    if fake_mac then
+        if #macchanger_bin > 0 and fake_mac == "auto" then
+            fake_mac = macchanger()
+        end
+        fake_macaddr(fake_mac)
+    else
+        fake_macaddr()
+    end
+
     os.execute("wifi reload "..cfg.device.." >& /dev/null")
     sleep(cfg.conn_timeout)
     stats = {}
@@ -273,6 +286,25 @@ function reconnect()
             if connected then break end
         end
     end
+end
+---}}}
+---{{{ fake_macaddr
+function fake_macaddr(mac)
+    if not mac or mac == false then
+        ucfg:delete("network", cfg.network, "macaddr")
+    else
+        ucfg:set("network", cfg.network, "macaddr", mac)
+        log(string.format("setting mac [%s]", mac), 6)
+    end
+    ucfg:save("network")
+end
+---}}}
+---{{{ macchanger
+function macchanger()
+    local out = pread(string.format("%s %s %s 2> /dev/null", macchanger_bin, cfg.macchanger, cfg.iface))
+    local old, new = out:match("Current MAC:.-(%w%w:%w%w:%w%w:%w%w:%w%w:%w%w).-Faked MAC:.-(%w%w:%w%w:%w%w:%w%w:%w%w:%w%w) ")
+    log(string.format("macchanger [%s -> %s]", old, new), 6)
+    return new
 end
 ---}}}
 --}}}
@@ -405,6 +437,8 @@ defaults = {
     conn_timeout = 10,
     stat_buffer = 50,
     log_level = 5,
+    fake_mac = false,
+    macchanger = "-r",
 }
 
 default_tests = {
@@ -431,6 +465,7 @@ ucfg = uci.cursor()
 ustate = uci.cursor(nil, "/var/state")
 
 load_config()
+macchanger_bin = pread("which macchanger"):match("(.*)\n")
 
 stats = {}
 iter = 0

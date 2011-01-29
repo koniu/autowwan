@@ -249,7 +249,6 @@ function connect(ap)
     uwifi:set("wireless", cfg.section, "key", ap.key)
     uwifi:set("wireless", cfg.device, "channel", ap.channel)
     uwifi:save("wireless")
-    uwifi:commit("wireless")
 
     local fake_mac
     if ap.fake_mac ~= nil then fake_mac = ap.fake_mac else fake_mac = cfg.fake_mac end
@@ -263,7 +262,11 @@ function connect(ap)
     end
 
     os.execute("wifi reload "..cfg.device.." >& /dev/null")
-    sleep(cfg.conn_timeout)
+    for i=1, cfg.conn_timeout do
+        sleep(1)
+        ustate:load("network")
+        if ustate:get("network", cfg.network, "up") then break end
+    end
     stats = {}
     for i, test in ipairs(tests) do
         if test.conn then

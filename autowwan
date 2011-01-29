@@ -321,6 +321,26 @@ end
 --}}}
 --{{{ test functions
 testf = {}
+---{{{ monitor
+function monitor()
+    for i, test in ipairs(tests) do
+        if test.interval and math.fmod(iter, test.interval) == 0 then
+            local result = testf[test.type](test)
+            if not result then
+                test.failed = (test.failed or 0) + 1
+                if test.failed >= test.retry_limit then
+                    log(string.format("%s test - reached retry limit [%d]", test.type, test.retry_limit), 5)
+                    iter = 0
+                    reconnect()
+                    break
+                end
+            else
+                test.failed = 0
+            end
+        end
+    end
+end
+---}}}
 ---{{{ ping
 testf.ping = function(arg)
     log("ping test  - ", nil, true)
@@ -485,22 +505,7 @@ iter = 0
 --}}}
 --{{{ main loop
 while true do
-    for i, test in ipairs(tests) do
-        if test.interval and math.fmod(iter, test.interval) == 0 then
-            local result = testf[test.type](test)
-            if not result then
-                test.failed = (test.failed or 0) + 1
-                if test.failed >= test.retry_limit then
-                    log(string.format("%s test - reached retry limit [%d]", test.type, test.retry_limit), 5)
-                    iter = 0
-                    reconnect()
-                    break
-                end
-            else
-                test.failed = 0
-            end
-        end
-    end
+    monitor()
     iter = iter + 1
     sleep(cfg.interval)
 end

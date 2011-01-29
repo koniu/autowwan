@@ -291,7 +291,7 @@ function reconnect()
     log("reconnecting", 5)
     local connected
     while not connected do
-        load_config()
+        if cfg.autoreload then load_config() end
         for i, ap in ipairs(filter_results(scan(cfg.iface, cfg.scan_repeats))) do
             connected = connect(ap)
             if connected then break end
@@ -471,6 +471,7 @@ defaults = {
     fake_mac = false,
     macchanger = "-r",
     scan_repeats = 1,
+    autoreload = true,
 }
 
 default_tests = {

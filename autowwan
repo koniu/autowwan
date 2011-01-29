@@ -197,7 +197,9 @@ iwinfo_emul = {
 ---{{{ filter_results
 function filter_results(results)
     local connectable = {}
-    for i, ap in ipairs(results) do
+    local total = 0
+    for k, ap in pairs(results) do
+        total = total + 1
         local preset = presets[ap.bssid] or presets[ap.ssid]
         ap.ssid = ap.ssid or (preset and preset.ssid)
         if ap.ssid and not (ignored[ap.ssid] or (preset and preset.ignore)) then
@@ -211,7 +213,7 @@ function filter_results(results)
         end
     end
     table.sort(connectable, pref_sort)
-    log("found "..#connectable.." out of "..#results)
+    log("found "..#connectable.." out of "..total)
     for i, ap in ipairs(connectable) do
         log(string.format("%16s %-20s %3s%%, ch %s, %s",ap.bssid, ap.ssid, math.floor((ap.quality*100)/ap.quality_max), ap.channel, ap.enc),6)
     end
@@ -219,10 +221,16 @@ function filter_results(results)
 end
 ---}}}
 ---{{{ scan
-function scan()
+function scan(iface, repeats)
+    local res = {}
     log("scanning: ", 5, true)
-    os.execute("ifconfig " .. cfg.iface .. " up")
-    return iw.scanlist(cfg.iface)
+    os.execute("ifconfig " .. iface .. " up")
+    for i=1, repeats do
+        for j, r in ipairs(iw.scanlist(iface)) do
+            res[r.bssid] = r
+        end
+    end
+    return res
 end
 ---}}}
 ---{{{ ping
@@ -284,7 +292,7 @@ function reconnect()
     local connected
     while not connected do
         load_config()
-        for i, ap in ipairs(filter_results(scan())) do
+        for i, ap in ipairs(filter_results(scan(cfg.iface, cfg.scan_repeats))) do
             connected = connect(ap)
             if connected then break end
         end
@@ -442,6 +450,7 @@ defaults = {
     log_level = 5,
     fake_mac = false,
     macchanger = "-r",
+    scan_repeats = 1,
 }
 
 default_tests = {

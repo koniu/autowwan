@@ -132,7 +132,7 @@ function load_config()
     end
     -- fill missing options from defaults
     for k, v in pairs(defaults) do
-        if not cfg[k] then cfg[k] = v end
+        if cfg[k] == nil then cfg[k] = v end
     end
     -- get network presets from uci
     presets = {}
